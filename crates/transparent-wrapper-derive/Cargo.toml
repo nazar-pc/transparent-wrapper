@@ -1,0 +1,30 @@
+[package]
+name = "transparent-wrapper-derive"
+description = "Implements the derive macro used by `transparent-wrapper` crate"
+keywords = ["transparent", "newtype", "wrapper", "derive", "proc-macro"]
+categories = ["rust-patterns", "development-tools::procedural-macro-helpers"]
+repository = "https://github.com/nazar-pc/transparent-wrapper"
+license = "0BSD"
+version = "0.1.0"
+authors = ["Nazar Mokrynskyi <nazar@mokrynskyi.com>"]
+edition = "2024"
+rust-version = "1.85"
+include = [
+    "/src",
+    "/Cargo.toml",
+    "/README.md",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

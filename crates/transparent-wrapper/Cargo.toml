@@ -1,0 +1,31 @@
+[package]
+name = "transparent-wrapper"
+description = "Zero-cost conversions between transparent wrappers and their inner types, usable in const fn"
+keywords = ["transparent", "newtype", "wrapper", "const", "no-std"]
+categories = ["rust-patterns", "no-std::no-alloc"]
+repository = "https://github.com/nazar-pc/transparent-wrapper"
+license = "0BSD"
+version = "0.1.0"
+authors = ["Nazar Mokrynskyi <nazar@mokrynskyi.com>"]
+edition = "2024"
+rust-version = "1.85"
+readme = "../../README.md"
+include = [
+    "/src",
+    "/tests",
+    "/Cargo.toml",
+    "/CHANGELOG.md",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+transparent-wrapper-derive = { workspace = true }
+
+[features]
+# Makes `TransparentWrapper` a const trait, requires nightly Rust
+const-trait = []
+
+[lints]
+workspace = true

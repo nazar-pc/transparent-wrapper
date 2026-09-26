@@ -1,0 +1,146 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: rust-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Not needed in CI, should make things a bit faster
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  # Nightly toolchain used for `const-trait` feature, formatting and Miri
+  NIGHTLY_TOOLCHAIN: nightly-2026-08-25
+  # Minimum supported Rust version, must match `rust-version` in `Cargo.toml`
+  MSRV_TOOLCHAIN: "1.85"
+  # Build smaller artifacts to avoid running out of space in CI and make it a bit faster
+  RUSTFLAGS: -C strip=symbols
+  RUST_BACKTRACE: full
+
+jobs:
+  cargo-fmt:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - &checkout-step
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+        with:
+          persist-credentials: 'false'
+
+      - &install-nightly-step
+        name: Install nightly toolchain
+        run: rustup toolchain install $NIGHTLY_TOOLCHAIN --profile minimal --component clippy,miri,rust-src,rustfmt
+
+      # Nightly is needed for unstable options in `rustfmt.toml`
+      - name: cargo fmt
+        run: cargo +$NIGHTLY_TOOLCHAIN fmt --all -- --check
+
+  cargo-clippy:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - *checkout-step
+
+      - &install-msrv-step
+        name: Install MSRV toolchain
+        run: rustup toolchain install $MSRV_TOOLCHAIN --profile minimal --component clippy
+
+      - name: cargo clippy
+        run: cargo +$MSRV_TOOLCHAIN clippy --locked --all --all-targets -- -D warnings
+
+  cargo-clippy-const-trait:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - *checkout-step
+
+      - *install-nightly-step
+
+      - name: cargo clippy
+        run: cargo +$NIGHTLY_TOOLCHAIN clippy --locked --all --all-targets --features transparent-wrapper/const-trait -- -D warnings
+
+  cargo-test:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - *checkout-step
+
+      - *install-msrv-step
+
+      - name: cargo test
+        run: cargo +$MSRV_TOOLCHAIN test --locked --all-targets
+
+      - name: cargo test --doc
+        run: cargo +$MSRV_TOOLCHAIN test --locked --doc
+
+  cargo-test-const-trait:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - *checkout-step
+
+      - *install-nightly-step
+
+      - name: cargo test
+        run: cargo +$NIGHTLY_TOOLCHAIN test --locked --all-targets --features transparent-wrapper/const-trait
+
+      - name: cargo test --doc
+        run: cargo +$NIGHTLY_TOOLCHAIN test --locked --doc --features transparent-wrapper/const-trait
+
+  cargo-miri-test:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - *checkout-step
+
+      - *install-nightly-step
+
+      - name: cargo miri test
+        run: cargo +$NIGHTLY_TOOLCHAIN miri test --locked --features transparent-wrapper/const-trait
+
+  rustdoc:
+    runs-on: ubuntu-26.04
+    env:
+      RUSTDOCFLAGS: -D warnings -D rustdoc::broken-intra-doc-links -D rustdoc::private_intra_doc_links
+
+    steps:
+      - *checkout-step
+
+      - *install-msrv-step
+
+      - *install-nightly-step
+
+      - name: cargo doc
+        run: cargo +$MSRV_TOOLCHAIN doc --locked --all --no-deps --lib
+
+      - name: cargo doc (const-trait)
+        run: cargo +$NIGHTLY_TOOLCHAIN doc --locked --all --no-deps --lib --all-features
+
+  rust-all:
+    # Hack for buggy GitHub Actions behavior with skipped checks: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks#handling-skipped-but-required-checks
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    needs:
+      - cargo-clippy
+      - cargo-clippy-const-trait
+      - cargo-fmt
+      - cargo-miri-test
+      - cargo-test
+      - cargo-test-const-trait
+      - rustdoc
+
+    steps:
+      - name: Job status check
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            [[ "$result" == "success" ]] || exit 1
+          done

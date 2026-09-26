@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/*",
+]
+
+[workspace.dependencies]
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
+syn = "3.0.6"
+transparent-wrapper-derive = { version = "0.1.0", path = "crates/transparent-wrapper-derive" }
+
+[workspace.lints.rust]
+rust_2018_idioms = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+# Conversions compile into nothing, so they should always be inlined, even in debug builds
+inline_always = "allow"
